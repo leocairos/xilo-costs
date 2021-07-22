@@ -1,4 +1,4 @@
-import { dbConfig } from 'dbConfing';
+import { dbConfig } from 'dbConfig';
 import { Request, Response } from 'express';
 import { IResumoOP } from 'IResumoOPDTO';
 import sql from 'mssql';
@@ -8,12 +8,14 @@ class GetResumoOPController {
     const { anoMes } = request.query;
     try {
       const pool = await sql.connect(dbConfig);
-      const resumoOP = await pool.request().query(`select * FROM
-          VW_CUS_RESUMO_OP
-        WHERE
-          AnoMes='${anoMes}'`);
+      const resumoOP = await pool.request().query(`
+        select * FROM
+            VW_CUS_RESUMO_OP
+          WHERE
+            AnoMes='${anoMes}'`);
 
       const resumoOPList = resumoOP.recordsets[0] as IResumoOP[];
+      // const orders = [...resumoOPList];
 
       const groupBy = (list, property) => {
         return list.reduce((acc, obj) => {
@@ -36,7 +38,20 @@ class GetResumoOPController {
         return product;
       });
 
-      return response.status(200).json(ordersKey);
+      // const mindMap = orders.map(item =>
+      //   item.ProdOP === item.Produto
+      //     ? {
+      //         id: Number(item.ProdOP),
+      //         label: `${item.Descricao.substr(0, 10)}`,
+      //       }
+      //     : {
+      //         id: Number(item.Produto),
+      //         label: `${item.Descricao.substr(0, 10)}`,
+      //         parent: Number(item.ProdOP),
+      //       },
+      // );
+      // return response.status(200).json({ mindMap });
+      return response.status(200).json({ ordersKey });
     } catch (error) {
       console.log(error);
     }

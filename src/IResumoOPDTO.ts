@@ -1,5 +1,5 @@
 export interface IResumoOP {
-  ProdOp: string;
+  ProdOP: string;
   CC: string;
   AnoMes: string;
   CF: string;
