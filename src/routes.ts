@@ -1,4 +1,5 @@
 import { AccountingController } from 'controller/AccountingController';
+import { BalanceController } from 'controller/BalanceController';
 import { FactorController } from 'controller/FactorController';
 import { IndirectController } from 'controller/IndirectController';
 import { OrderSummaryController } from 'controller/OrdersController';
@@ -8,6 +9,7 @@ const orderSummaryController = new OrderSummaryController();
 const factorController = new FactorController();
 const indirectController = new IndirectController();
 const accountingController = new AccountingController();
+const balanceController = new BalanceController();
 
 const router = Router();
 
@@ -15,5 +17,6 @@ router.get('/order', orderSummaryController.handle);
 router.get('/factor', factorController.handle);
 router.get('/indirect', indirectController.handle);
 router.get('/accounting', accountingController.handle);
+router.get('/balance', balanceController.handle);
 
 export { router };
