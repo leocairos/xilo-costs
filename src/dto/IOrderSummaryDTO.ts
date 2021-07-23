@@ -1,4 +1,4 @@
-export interface IResumoOP {
+export interface IOrderSummary {
   ProdOP: string;
   CC: string;
   AnoMes: string;

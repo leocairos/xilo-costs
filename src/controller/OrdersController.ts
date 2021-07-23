@@ -1,9 +1,9 @@
 import { dbConfig } from 'dbConfig';
+import { IOrderSummary } from 'dto/IOrderSummaryDTO';
 import { Request, Response } from 'express';
-import { IResumoOP } from 'IResumoOPDTO';
 import sql from 'mssql';
 
-class GetResumoOPController {
+class OrderSummaryController {
   async handle(request: Request, response: Response): Promise<Response> {
     const { anoMes } = request.query;
     try {
@@ -14,7 +14,7 @@ class GetResumoOPController {
           WHERE
             AnoMes='${anoMes}'`);
 
-      const resumoOPList = resumoOP.recordsets[0] as IResumoOP[];
+      const resumoOPList = resumoOP.recordsets[0] as IOrderSummary[];
       // const orders = [...resumoOPList];
 
       const groupBy = (list, property) => {
@@ -31,7 +31,7 @@ class GetResumoOPController {
       const ordersGroup = groupBy(resumoOPList, 'ProdOP');
 
       const ordersKey = Object.keys(ordersGroup).map(prodOpKey => {
-        const items = Object.values(ordersGroup[prodOpKey]) as IResumoOP[];
+        const items = Object.values(ordersGroup[prodOpKey]) as IOrderSummary[];
         const product = items.filter(item => item.CF === 'PR')[0];
         const composition = items.filter(item => item.CF !== 'PR');
         Object.assign(product, { composition });
@@ -60,4 +60,4 @@ class GetResumoOPController {
   }
 }
 
-export { GetResumoOPController };
+export { OrderSummaryController };
