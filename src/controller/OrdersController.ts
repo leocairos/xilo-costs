@@ -17,41 +17,45 @@ class OrderSummaryController {
       const resumoOPList = resumoOP.recordsets[0] as IOrderSummary[];
       // const orders = [...resumoOPList];
 
-      const groupBy = (list, property) => {
-        return list.reduce((acc, obj) => {
-          const key = obj[property];
-          if (!acc[key]) {
-            acc[key] = [];
-          }
-          acc[key].push(obj);
-          return acc;
-        }, {});
-      };
+      // const groupBy = (list, property) => {
+      //   return list.reduce((acc, obj) => {
+      //     const key = obj[property];
+      //     if (!acc[key]) {
+      //       acc[key] = [];
+      //     }
+      //     acc[key].push(obj);
+      //     return acc;
+      //   }, {});
+      // };
 
-      const ordersGroup = groupBy(resumoOPList, 'ProdOP');
+      // const ordersGroup = groupBy(resumoOPList, 'ProdOP');
 
-      const ordersKey = Object.keys(ordersGroup).map(prodOpKey => {
-        const items = Object.values(ordersGroup[prodOpKey]) as IOrderSummary[];
-        const product = items.filter(item => item.CF === 'PR')[0];
-        const composition = items.filter(item => item.CF !== 'PR');
-        Object.assign(product, { composition });
-        return product;
-      });
+      // const ordersKey = Object.keys(ordersGroup).map(prodOpKey => {
+      //   const items = Object.values(ordersGroup[prodOpKey]) as IOrderSummary[];
+      //   const product = items.filter(item => item.CF === 'PR')[0];
+      //   const composition = items.filter(item => item.CF !== 'PR');
+      //   Object.assign(product, { composition });
+      //   return product;
+      // });
 
-      // const mindMap = orders.map(item =>
-      //   item.ProdOP === item.Produto
-      //     ? {
-      //         id: Number(item.ProdOP),
-      //         label: `${item.Descricao.substr(0, 10)}`,
-      //       }
-      //     : {
-      //         id: Number(item.Produto),
-      //         label: `${item.Descricao.substr(0, 10)}`,
-      //         parent: Number(item.ProdOP),
-      //       },
-      // );
-      // return response.status(200).json({ mindMap });
-      return response.status(200).json({ ordersKey });
+      const elementsFlow = resumoOPList.map(item => ({
+        id: item.Produto,
+        data: { label: `${item.Descricao}` },
+        position: { x: 0, y: 0 },
+      }));
+      const edgeFlow = resumoOPList
+        .filter(item => ['PA', 'PI', 'MP'].includes(item.Tipo))
+        .map(item => ({
+          id: `${item.Produto} to ${item.ProdOP}`,
+          source: item.Produto,
+          target: item.ProdOP,
+          animated: true,
+          type: 'smoothstep',
+        }));
+      return response
+        .status(200)
+        .json({ resumoOPList, elementsFlow, edgeFlow });
+      // return response.status(200).json({ ordersKey });
     } catch (error) {
       console.log(error);
     }
