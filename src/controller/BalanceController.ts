@@ -24,6 +24,24 @@ class BalanceController {
 
     return response.status(400).json({});
   }
+
+  async handleLast(request: Request, response: Response): Promise<Response> {
+    try {
+      const pool = await sql.connect(dbConfig);
+      const lasts = await pool.request().query(`
+        select TOP 12 AnoMes FROM VW_CUS_SALDO_FINAL_PROD
+        group by AnoMes
+        order by AnoMes desc
+        `);
+
+      const lastsPeriods = lasts.recordsets[0].map(item => item.AnoMes);
+      return response.status(200).json({ lastsPeriods });
+    } catch (error) {
+      console.log(error);
+    }
+
+    return response.status(400).json({});
+  }
 }
 
 export { BalanceController };

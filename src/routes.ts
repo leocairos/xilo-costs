@@ -18,5 +18,6 @@ router.get('/factor', factorController.handle);
 router.get('/indirect', indirectController.handle);
 router.get('/accounting', accountingController.handle);
 router.get('/balance', balanceController.handle);
+router.get('/last-balance', balanceController.handleLast);
 
 export { router };
