@@ -28,14 +28,23 @@ class BalanceController {
   async handleLast(request: Request, response: Response): Promise<Response> {
     try {
       const pool = await sql.connect(dbConfig);
-      const lasts = await pool.request().query(`
+      const lastClosed = await pool.request().query(`
         select TOP 12 AnoMes FROM VW_CUS_SALDO_FINAL_PROD
         group by AnoMes
         order by AnoMes desc
         `);
 
-      const lastsPeriods = lasts.recordsets[0].map(item => item.AnoMes);
-      return response.status(200).json({ lastsPeriods });
+      const lastAll = await pool.request().query(`
+        select TOP 12 AnoMes FROM VW_CUS_RESUMO_OP
+        group by AnoMes
+        order by AnoMes desc
+        `);
+
+      const lastClosedPeriods = lastClosed.recordsets[0].map(
+        item => item.AnoMes,
+      );
+      const lastAllPeriods = lastAll.recordsets[0].map(item => item.AnoMes);
+      return response.status(200).json({ lastClosedPeriods, lastAllPeriods });
     } catch (error) {
       console.log(error);
     }
