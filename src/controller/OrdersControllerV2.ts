@@ -120,7 +120,83 @@ class OrderSummaryControllerV2 {
         return product;
       });
 
-      return response.status(200).json({ ordersSummary: ordersKey });
+      const resume = [...ordersKey].map(item => ({
+        Produto: item.ProdOP,
+        Descricao: item.Descricao,
+        // Produto: item.Produto,
+        composition: item.composition
+          .filter(itemC => !['CUSTOS-GGF', 'CUSTOS-MO'].includes(itemC.Produto))
+          .filter(itemC2 => ['PA', 'PI', 'MP'].includes(itemC2.Tipo))
+          .map(itemComp => ({
+            // CF: itemComp.CF,
+            Componente: itemComp.Produto,
+            Descricao: itemComp.Descricao,
+          })),
+      }));
+
+      const products = [];
+
+      resume.forEach(it => {
+        if (it.composition.length > 0) {
+          it.composition.forEach(cp => {
+            products.push({
+              Produto: it.Produto,
+              DescProd: it.Descricao,
+              Componente: cp.Componente,
+              DescComp: cp.Descricao,
+            });
+          });
+        } else {
+          products.push({
+            Produto: it.Produto,
+            DescProd: it.Descricao,
+            Componente: null,
+            DescComp: null,
+          });
+        }
+      });
+
+      const compare = (a, b) => {
+        // Use toUpperCase() to ignore character casing
+        const produtoA = a.Produto?.toUpperCase();
+        const produtoB = b.Produto?.toUpperCase();
+
+        let comparison = 0;
+        if (produtoA > produtoB) {
+          comparison = 1;
+        } else if (produtoA < produtoB) {
+          comparison = -1;
+        }
+        return comparison;
+      };
+
+      products.sort(compare);
+
+      let runX = 0;
+      const structProducts = (products, Produto) => {
+        const node = [];
+        products
+          .filter(d => {
+            return d.Produto === Produto;
+          })
+          .forEach(d => {
+            runX++;
+            if (runX >= 300) return;
+            const cd = d;
+            cd.child = structProducts(products, d.Componente);
+            return node.push(cd);
+          });
+        return node;
+      };
+
+      const results = structProducts(products, products[100].Produto);
+
+      return response.status(200).json({
+        results,
+        resume,
+        products,
+        ordersSummary: ordersKey,
+      });
       // return response.status(200).json({ ordersKey });
     } catch (error) {
       throw new Error(error);
