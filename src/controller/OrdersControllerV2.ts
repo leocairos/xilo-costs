@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import { dbConfig } from 'dbConfig';
 import { IOrderSummary } from 'dto/IOrderSummaryDTO';
 import { Request, Response } from 'express';
@@ -5,7 +6,7 @@ import sql from 'mssql';
 
 class OrderSummaryControllerV2 {
   async handle(request: Request, response: Response): Promise<Response> {
-    const { anoMes } = request.query;
+    const { anoMes, idProduct } = request.query;
     try {
       const pool = await sql.connect(dbConfig);
       const resumoOP = await pool.request().query(`
@@ -16,71 +17,53 @@ class OrderSummaryControllerV2 {
 
       const resumoOPList = resumoOP.recordsets[0] as IOrderSummary[];
 
-      // const orders = resumoOPList as IOrderSummary[];
-      // const MOandGGF = orders
-      //   .filter(item => ['CUSTOS-GGF', 'CUSTOS-MO'].includes(item.Produto))
-      //   .map(item => ({
-      //     ProdOP: item.ProdOP,
-      //     Produto: item.Produto,
-      //     CustoTotal: item.CustoTotal,
-      //   }));
+      const structProducts = (products, Produto) => {
+        const node = [];
+        const material = [];
 
-      // const material = orders
-      //   .filter(item => !['CUSTOS-GGF', 'CUSTOS-MO'].includes(item.Produto))
-      //   .filter(item => !['PA', 'PI', 'MP'].includes(item.Tipo))
-      //   .map(item => ({
-      //     ProdOP: item.ProdOP,
-      //     Produto: item.Produto,
-      //     CustoTotal: item.CustoTotal,
-      //   }));
+        products
+          .filter(d => {
+            return d.ProdOP === Produto && d.CF !== 'PR';
+          })
+          // .filter(d => {
+          //   return ['PA', 'PI', 'MP'].includes(d.Tipo);
+          // })
+          .forEach(d => {
+            const cd = d;
+            if (!['PA', 'PI', 'MP'].includes(d.Tipo)) {
+              material.push(cd);
+            } else {
+              if (['PA', 'PI', 'MP'].includes(d.Tipo))
+                cd.components = structProducts(products, d.Produto);
+              return node.push(cd);
+            }
+          });
+        node[0]?.components?.push(...material);
+        return node;
+      };
 
-      // const elementsFlow = orders
-      //   .filter(item => ['PA', 'PI', 'MP'].includes(item.Tipo))
-      //   .map(item => {
-      //     const mo = MOandGGF.filter(
-      //       itemMOGGF =>
-      //         itemMOGGF.ProdOP === item.ProdOP &&
-      //         itemMOGGF.Produto === 'CUSTOS-MO',
-      //     );
-      //     const ggf = MOandGGF.filter(
-      //       itemMOGGF =>
-      //         itemMOGGF.ProdOP === item.ProdOP &&
-      //         itemMOGGF.Produto === 'CUSTOS-GGF',
-      //     );
-      //     const materialFase = material
-      //       .filter(itemMat => itemMat.ProdOP === item.ProdOP)
-      //       .reduce((acc, item) => acc + item.CustoTotal, 0);
+      const results = structProducts(resumoOPList, idProduct);
 
-      //     const detail = orders
-      //       .filter(
-      //         itemDetail =>
-      //           itemDetail.ProdOP === item.ProdOP &&
-      //           itemDetail.Produto !== item.ProdOP,
-      //       )
-      //       .map(item => ({
-      //         Produto: item.Produto,
-      //         Descricao: item.Descricao,
-      //         Qtde: item.Qtde,
-      //         CustoTotal: item.CustoTotal,
-      //       }));
+      return response.status(200).json({
+        results,
+        resumoOPList,
+      });
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
 
-      //     return {
-      //       ...item,
-      //       moFase: mo.length > 0 ? mo[0].CustoTotal : 0,
-      //       ggfFase: ggf.length > 0 ? ggf[0].CustoTotal : 0,
-      //       materialFase,
-      //       detail,
-      //     };
-      //   });
-      // .map(item => ({ id: item.Produto }))
-      // // remove duplicates
-      // .reduce((acc, current) => {
-      //   const x = acc.find(item => item.id === current.id);
-      //   if (!x) {
-      //     return acc.concat([current]);
-      //   }
-      //   return acc;
-      // }, []);
+  async handle2(request: Request, response: Response): Promise<Response> {
+    const { anoMes, idProduct } = request.query;
+    try {
+      const pool = await sql.connect(dbConfig);
+      const resumoOP = await pool.request().query(`
+        select * FROM
+            VW_CUS_RESUMO_OP_v2
+          WHERE
+            AnoMes='${anoMes}'`);
+
+      const resumoOPList = resumoOP.recordsets[0] as IOrderSummary[];
 
       const groupBy = (list, property) => {
         return list.reduce((acc, obj) => {
@@ -124,6 +107,7 @@ class OrderSummaryControllerV2 {
         Produto: item.ProdOP,
         Descricao: item.Descricao,
         // Produto: item.Produto,
+        CentroCusto: item.CC,
         composition: item.composition
           .filter(itemC => !['CUSTOS-GGF', 'CUSTOS-MO'].includes(itemC.Produto))
           .filter(itemC2 => ['PA', 'PI', 'MP'].includes(itemC2.Tipo))
@@ -131,6 +115,7 @@ class OrderSummaryControllerV2 {
             // CF: itemComp.CF,
             Componente: itemComp.Produto,
             Descricao: itemComp.Descricao,
+            CentroCusto: itemComp.CC,
           })),
       }));
 
@@ -141,38 +126,42 @@ class OrderSummaryControllerV2 {
           it.composition.forEach(cp => {
             products.push({
               Produto: it.Produto,
-              DescProd: it.Descricao,
+              Descricao: it.Descricao,
+              CentroCusto: it.CentroCusto,
               Componente: cp.Componente,
-              DescComp: cp.Descricao,
+              // DescComp: cp.Descricao,
+              // CC_Componente: cp.CentroCusto,
             });
           });
         } else {
           products.push({
             Produto: it.Produto,
-            DescProd: it.Descricao,
-            Componente: null,
-            DescComp: null,
+            Descricao: it.Descricao,
+            CentroCusto: it.CentroCusto,
+            // Componente: null,
+            // DescComp: null,
+            // CC_Componente: null,
           });
         }
       });
 
-      const compare = (a, b) => {
-        // Use toUpperCase() to ignore character casing
-        const produtoA = a.Produto?.toUpperCase();
-        const produtoB = b.Produto?.toUpperCase();
+      // const compare = (a, b) => {
+      //   // Use toUpperCase() to ignore character casing
+      //   const produtoA = a.Produto?.toUpperCase();
+      //   const produtoB = b.Produto?.toUpperCase();
 
-        let comparison = 0;
-        if (produtoA > produtoB) {
-          comparison = 1;
-        } else if (produtoA < produtoB) {
-          comparison = -1;
-        }
-        return comparison;
-      };
+      //   let comparison = 0;
+      //   if (produtoA > produtoB) {
+      //     comparison = 1;
+      //   } else if (produtoA < produtoB) {
+      //     comparison = -1;
+      //   }
+      //   return comparison;
+      // };
 
-      products.sort(compare);
+      // products.sort(compare);
 
-      let runX = 0;
+      // const runX = 0;
       const structProducts = (products, Produto) => {
         const node = [];
         products
@@ -180,16 +169,18 @@ class OrderSummaryControllerV2 {
             return d.Produto === Produto;
           })
           .forEach(d => {
-            runX++;
-            if (runX >= 300) return;
+            // runX++;
+            // if (runX >= 30) return;
             const cd = d;
-            cd.child = structProducts(products, d.Componente);
+            cd.components = structProducts(products, d.Componente);
+            delete cd.Componente;
+            delete cd.DescComp;
             return node.push(cd);
           });
         return node;
       };
 
-      const results = structProducts(products, products[100].Produto);
+      const results = structProducts(products, idProduct);
 
       return response.status(200).json({
         results,
@@ -197,7 +188,6 @@ class OrderSummaryControllerV2 {
         products,
         ordersSummary: ordersKey,
       });
-      // return response.status(200).json({ ordersKey });
     } catch (error) {
       throw new Error(error);
     }
