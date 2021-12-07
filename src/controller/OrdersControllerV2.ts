@@ -4,8 +4,207 @@ import { IOrderSummary } from 'dto/IOrderSummaryDTO';
 import { Request, Response } from 'express';
 import sql from 'mssql';
 
+function structProducts(products, component?) {
+  const node = [];
+  const material = [];
+  products
+    .filter(item => {
+      return item.ProdOP === component && item.CF !== 'PR';
+    })
+    .forEach(d => {
+      const comp = d;
+      if (!['PA', 'PI', 'MP'].includes(d.Tipo)) {
+        material.push(comp);
+        return null;
+      }
+      comp.components = structProducts(products, d.Produto);
+      return node.push(comp);
+    });
+  node[0]?.components?.push(...material);
+  return node;
+}
+
+async function allProductsList(anoMes): Promise<any> {
+  try {
+    const pool = await sql.connect(dbConfig);
+    const productsQuery = await pool.request().query(`
+      select distinct ProdOP FROM
+          VW_CUS_RESUMO_OP_v2
+        WHERE
+          AnoMes='${anoMes}' and CF='PR'`);
+
+    const allProducts = productsQuery.recordsets[0].map(item => item.ProdOP);
+    return allProducts;
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+async function opSummary(anoMes, idProduct): Promise<any> {
+  try {
+    const pool = await sql.connect(dbConfig);
+    const resumoOP = await pool.request().query(`
+      select * FROM
+          VW_CUS_RESUMO_OP_v2
+        WHERE
+          AnoMes='${anoMes}'`);
+
+    const allSummaryOrders = resumoOP.recordsets[0] as IOrderSummary[];
+
+    // AllProducts
+    // const idsProducts = (await allProductsList(anoMes)) as string[];
+    // console.log(idsProducts);
+    // const productStructOrder = idsProducts.map(prod =>
+    //   structProducts(resumoOP.recordsets[0], prod),
+    // );
+    const productStructOrder = structProducts(
+      resumoOP.recordsets[0],
+      idProduct,
+    );
+
+    const groupBy = (list, property) => {
+      return list.reduce((acc, obj) => {
+        const key = obj[property];
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(obj);
+        return acc;
+      }, {});
+    };
+
+    const ordersGroupByProduct = groupBy(resumoOP.recordsets[0], 'ProdOP');
+    const ordersGroupByCC = groupBy(resumoOP.recordsets[0], 'CC');
+    return {
+      productStructOrder,
+      allSummaryOrders,
+      ordersGroupByProduct,
+      ordersGroupByCC,
+    };
+  } catch (error) {
+    throw new Error(error);
+  }
+}
 class OrderSummaryControllerV2 {
   async handle(request: Request, response: Response): Promise<Response> {
+    const { anoMes, idProduct } = request.query;
+
+    const result = await opSummary(anoMes, idProduct);
+    return response.status(200).json(result);
+    // try {
+    //   const pool = await sql.connect(dbConfig);
+    //   const resumoOP = await pool.request().query(`
+    //     select * FROM
+    //         VW_CUS_RESUMO_OP_v2
+    //       WHERE
+    //         AnoMes='${anoMes}'`);
+
+    //   const resumoOPList = resumoOP.recordsets[0] as IOrderSummary[];
+
+    //   const structProducts = (products, component?) => {
+    //     const node = [];
+    //     const material = [];
+    //     products
+    //       .filter(item => {
+    //         return item.ProdOP === component && item.CF !== 'PR';
+    //       })
+    //       .forEach(d => {
+    //         const comp = d;
+    //         if (!['PA', 'PI', 'MP'].includes(d.Tipo)) {
+    //           material.push(comp);
+    //           return null;
+    //         }
+    //         comp.components = structProducts(products, d.Produto);
+    //         return node.push(comp);
+    //       });
+    //     node[0]?.components?.push(...material);
+    //     return node;
+    //   };
+
+    //   const results = structProducts(resumoOP.recordsets[0], idProduct);
+
+    //   const groupBy = (list, property) => {
+    //     return list.reduce((acc, obj) => {
+    //       const key = obj[property];
+    //       if (!acc[key]) {
+    //         acc[key] = [];
+    //       }
+    //       acc[key].push(obj);
+    //       return acc;
+    //     }, {});
+    //   };
+
+    //   const ordersGroup = groupBy(resumoOP.recordsets[0], 'ProdOP');
+    //   return response.status(200).json({
+    //     results,
+    //     resumoOPList,
+    //     ordersGroup,
+    //   });
+    // } catch (error) {
+    //   throw new Error(error);
+    // }
+  }
+
+  async handleFuncionando(
+    request: Request,
+    response: Response,
+  ): Promise<Response> {
+    const { anoMes, idProduct } = request.query;
+    try {
+      const pool = await sql.connect(dbConfig);
+      const resumoOP = await pool.request().query(`
+        select * FROM
+            VW_CUS_RESUMO_OP_v2
+          WHERE
+            AnoMes='${anoMes}'`);
+
+      const resumoOPList = resumoOP.recordsets[0] as IOrderSummary[];
+
+      const structProducts = (products, component?) => {
+        const node = [];
+        const material = [];
+        products
+          .filter(item => {
+            return item.ProdOP === component && item.CF !== 'PR';
+          })
+          .forEach(d => {
+            const comp = d;
+            if (!['PA', 'PI', 'MP'].includes(d.Tipo)) {
+              material.push(comp);
+              return null;
+            }
+            comp.components = structProducts(products, d.Produto);
+            return node.push(comp);
+          });
+        node[0]?.components?.push(...material);
+        return node;
+      };
+
+      const results = structProducts(resumoOP.recordsets[0], idProduct);
+
+      const groupBy = (list, property) => {
+        return list.reduce((acc, obj) => {
+          const key = obj[property];
+          if (!acc[key]) {
+            acc[key] = [];
+          }
+          acc[key].push(obj);
+          return acc;
+        }, {});
+      };
+
+      const ordersGroup = groupBy(resumoOP.recordsets[0], 'ProdOP');
+      return response.status(200).json({
+        results,
+        resumoOPList,
+        ordersGroup,
+      });
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
+
+  async handle3(request: Request, response: Response): Promise<Response> {
     const { anoMes, idProduct } = request.query;
     try {
       const pool = await sql.connect(dbConfig);

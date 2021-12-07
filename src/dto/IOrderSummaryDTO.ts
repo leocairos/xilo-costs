@@ -13,4 +13,7 @@ export interface IOrderSummary {
   Material: number;
   MaoDeObra: number;
   GGF: number;
+  OrigPerda: string;
+  DestPerda: string;
+  QtdePerda: number;
 }
