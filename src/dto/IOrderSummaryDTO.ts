@@ -16,4 +16,5 @@ export interface IOrderSummary {
   OrigPerda: string;
   DestPerda: string;
   QtdePerda: number;
+  composition?: IOrderSummary[];
 }
