@@ -3,25 +3,30 @@ import { Request, Response } from 'express';
 import sql from 'mssql';
 
 function formattedItem(item, level) {
-  return {
+  const result = {
     // level,
-    // productionOf: `${item.ProdOP} ${item.DescricaoProdOP}`,
     // ProdOP: item.ProdOP,
     // DescricaoProdOP: item.DescricaoProdOP,
     // CC: item.CC,
     // DescricaoCC: item.DescricaoCC,
     phase: `${item.CC} ${item.DescricaoCC}`,
-    AnoMes: item.AnoMes,
+    productionOf: `${item.ProdOP} ${item.DescricaoProdOP}`,
+    component: `${item.Produto} ${item.Descricao}`,
+    // AnoMes: item.AnoMes,
     // TM: item.TM,
     CF: item.CF,
     // Produto: item.Produto,
     // Descricao: item.Descricao,
-    component: `${item.Produto} ${item.Descricao}`,
     Tipo: item.Tipo,
     Qtde: item.Qtde,
     CustoTotal: item.CustoTotal,
+    CustoUnit: item.CustUnit,
+    cmTon: (item.CustoTotal / item.Qtde) * 1000,
     components: item.components,
   };
+  if (item.CF === 'PR') delete result.component;
+  else delete result.productionOf;
+  return result;
 }
 
 function structProducts(products, component?, level = 1) {
