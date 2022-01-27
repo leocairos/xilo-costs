@@ -8,7 +8,7 @@ function formattedItem(item, level) {
     : item.Qtde;
   const unitaryCost = item.CustoTotal / quantity;
   const result = {
-    // level,
+    level,
     ProdOP: item.ProdOP,
     // DescricaoProdOP: item.DescricaoProdOP,
     // CC: item.CC,
@@ -73,9 +73,17 @@ function structProducts(
 
     comp.parentCustoTotal =
       level > 1 ? parentCustoTotal : nodeParent.CustoTotal;
+
+    const auxQuantLevel =
+      level >= 1
+        ? (comp.Qtde * 1000) / comp.parentQuantity
+        : (comp.Qtde * 1000) / comp.qtdeCompParaProduzir1TonPai;
+
     comp.qtdeCompParaProduzir1TonPai = ['MO', 'GG'].includes(comp.Tipo)
       ? 1000
-      : (comp.Qtde * 1000) / comp.parentQuantity;
+      : //  : auxQuantLevel;
+        (comp.Qtde * 1000) / comp.parentQuantity;
+
     comp.costProductionParentTon =
       comp.qtdeCompParaProduzir1TonPai * unitaryCost;
     if (!['PA', 'PI', 'MP'].includes(comp.Tipo)) {
